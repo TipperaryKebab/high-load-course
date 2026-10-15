@@ -3468,6 +3468,51 @@
       ],
       "title": "Jetty Statistics",
       "type": "row"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 7 },
+      "id": 101,
+      "panels": [],
+      "title": "Case 3",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "description": "Accepted payment requests and HTTP 429 responses. Incoming attempts include retries. Admission limit: 1 payment/s for acc-5.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "min": 0,
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 8 },
+      "id": 102,
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "none" }
+      },
+      "targets": [
+        {
+          "expr": "sum by (result) (rate(shop_payment_requests_total{service=~\"$service\"}[$__rate_interval]))",
+          "legendFormat": "{{result}}",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "expr": "sum(rate(shop_payment_requests_total{service=~\"$service\"}[$__rate_interval]))",
+          "legendFormat": "incoming attempts",
+          "range": true,
+          "refId": "B"
+        }
+      ],
+      "title": "Payment admission rate",
+      "type": "timeseries"
     }
   ],
   "preload": false,

@@ -17,6 +17,8 @@ interface PaymentService {
 
  */
 interface PaymentExternalSystemAdapter {
+    val properties: PaymentAccountProperties
+
     fun performPaymentAsync(paymentId: UUID, amount: Int, paymentStartedAt: Long, deadline: Long)
 
     fun name(): String

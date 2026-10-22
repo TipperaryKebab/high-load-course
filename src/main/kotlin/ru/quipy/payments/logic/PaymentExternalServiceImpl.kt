@@ -17,7 +17,7 @@ import java.util.*
 
 // Advice: always treat time as a Duration
 class PaymentExternalSystemAdapterImpl(
-    private val properties: PaymentAccountProperties,
+    override val properties: PaymentAccountProperties,
     private val paymentESService: EventSourcingService<UUID, PaymentAggregate, PaymentAggregateState>,
     private val paymentProviderHostPort: String,
     private val token: String,
@@ -61,6 +61,12 @@ class PaymentExternalSystemAdapterImpl(
             }.build()
 
             rateLimiter.tickBlocking()
+            if (now() >= deadline) {
+                paymentESService.update(paymentId) {
+                    it.logProcessing(false, now(), transactionId, reason = "Payment deadline expired before sending.")
+                }
+                return
+            }
             client.newCall(request).execute().use { response ->
                 val body = try {
                     mapper.readValue(response.body?.string(), ExternalSysResponse::class.java)

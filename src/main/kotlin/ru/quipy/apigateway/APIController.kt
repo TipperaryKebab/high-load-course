@@ -9,10 +9,8 @@ import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
-import ru.quipy.common.utils.SlidingWindowRateLimiter
 import ru.quipy.orders.repository.OrderRepository
 import ru.quipy.payments.logic.OrderPayer
-import java.time.Duration
 import java.util.*
 
 @RestController
@@ -21,7 +19,6 @@ class APIController(
     @Value("\${payment.service-name}") serviceName: String,
 ) {
 
-    private val paymentRateLimiter = SlidingWindowRateLimiter(1, Duration.ofSeconds(1))
     private val acceptedPayments = meterRegistry.counter("shop.payment.requests", "service", serviceName, "result", "accepted")
     private val throttledPayments = meterRegistry.counter("shop.payment.requests", "service", serviceName, "result", "throttled")
 
@@ -70,21 +67,16 @@ class APIController(
 
     @PostMapping("/orders/{orderId}/payment")
     fun payOrder(@PathVariable orderId: UUID, @RequestParam deadline: Long): ResponseEntity<PaymentSubmissionDto> {
-        if (!paymentRateLimiter.tick()) {
+        val paymentId = UUID.randomUUID()
+        val order = orderRepository.findById(orderId) ?: throw IllegalArgumentException("No such order $orderId")
+        val createdAt = orderPayer.processPayment(orderId, order.price, paymentId, deadline)
+        if (createdAt == null) {
             throttledPayments.increment()
             return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
-                .header(HttpHeaders.RETRY_AFTER, (System.currentTimeMillis() + 1000).toString())
+                .header(HttpHeaders.RETRY_AFTER, (System.currentTimeMillis() + orderPayer.retryAfterMillis).toString())
                 .build()
         }
 
-        val paymentId = UUID.randomUUID()
-        val order = orderRepository.findById(orderId)?.let {
-            orderRepository.save(it.copy(status = OrderStatus.PAYMENT_IN_PROGRESS))
-            it
-        } ?: throw IllegalArgumentException("No such order $orderId")
-
-
-        val createdAt = orderPayer.processPayment(orderId, order.price, paymentId, deadline)
         acceptedPayments.increment()
         return ResponseEntity.ok(PaymentSubmissionDto(createdAt, paymentId))
     }

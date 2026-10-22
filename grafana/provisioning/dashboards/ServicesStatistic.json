@@ -3474,7 +3474,7 @@
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 7 },
       "id": 101,
       "panels": [],
-      "title": "Case 3",
+      "title": "Case 4",
       "type": "row"
     },
     {
@@ -3482,7 +3482,7 @@
         "type": "prometheus",
         "uid": "PBFA97CFB590B2093"
       },
-      "description": "Accepted payment requests and HTTP 429 responses. Incoming attempts include retries. Admission limit: 1 payment/s for acc-5.",
+      "description": "Accepted payment requests and HTTP 429 responses. Incoming attempts include retries. Admission depends on the bounded payment queue and estimated time remaining before the deadline.",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },

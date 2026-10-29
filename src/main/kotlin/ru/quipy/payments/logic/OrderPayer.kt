@@ -9,10 +9,12 @@ import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
 import ru.quipy.apigateway.APIController.OrderStatus
+import ru.quipy.common.utils.LeakingBucketRateLimiter
 import ru.quipy.common.utils.NamedThreadFactory
 import ru.quipy.core.EventSourcingService
 import ru.quipy.orders.repository.OrderRepository
 import ru.quipy.payments.api.PaymentAggregate
+import java.time.Duration
 import java.util.*
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.RejectedExecutionException
@@ -40,18 +42,22 @@ class OrderPayer(
     }
     private val averageProcessingMillis = accounts.sumOf { it.averageProcessingTime.toMillis().coerceAtLeast(1) }
     private val processingRate = accounts.minOf {
-        minOf(it.rateLimitPerSec / 1.1, it.parallelRequests * 1000.0 / it.averageProcessingTime.toMillis().coerceAtLeast(1))
+        minOf(it.rateLimitPerSec.toDouble(), it.parallelRequests * 1000.0 / it.averageProcessingTime.toMillis().coerceAtLeast(1))
     }
-    private val workers = ceil(processingRate * averageProcessingMillis / 1000).toInt()
+    private val workers = ceil(processingRate * 2 * averageProcessingMillis / 1000).toInt()
         .coerceIn(1, accounts.minOf { it.parallelRequests })
     val retryAfterMillis = ceil(1000 / processingRate).toLong()
+    private val queueCapacity = 8_000
+    private val admissionLimiter = LeakingBucketRateLimiter(
+        1, Duration.ofNanos(ceil(1_000_000_000 / processingRate).toLong()), queueCapacity
+    )
 
     private val paymentExecutor = ThreadPoolExecutor(
         workers,
         workers,
         0L,
         TimeUnit.MILLISECONDS,
-        LinkedBlockingQueue(ceil(processingRate).toInt()),
+        LinkedBlockingQueue(queueCapacity),
         NamedThreadFactory("payment-submission-executor"),
         ThreadPoolExecutor.AbortPolicy()
     )
@@ -64,8 +70,10 @@ class OrderPayer(
     @Synchronized
     fun processPayment(orderId: UUID, amount: Int, paymentId: UUID, deadline: Long): Long? {
         val createdAt = System.currentTimeMillis()
-        val estimatedWaitMillis = (paymentExecutor.queue.size + 1) * 1000.0 / processingRate
-        if (estimatedWaitMillis + 2 * averageProcessingMillis >= deadline - createdAt) return null
+        val maxWait = Duration.ofMillis(deadline - createdAt - 2 * averageProcessingMillis)
+        val pending = paymentExecutor.taskCount - paymentExecutor.completedTaskCount
+        if (pending * 1000.0 / processingRate >= maxWait.toMillis()) return null
+        if (!admissionLimiter.tick(maxWait)) return null
 
         try {
             paymentExecutor.execute {

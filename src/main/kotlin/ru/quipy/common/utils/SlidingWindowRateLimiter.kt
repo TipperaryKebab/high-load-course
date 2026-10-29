@@ -21,6 +21,7 @@ class SlidingWindowRateLimiter(
 
     private val sum = AtomicLong(0)
     private val queue = PriorityBlockingQueue<Measure>(10_000)
+    private val blockingLock = ReentrantLock(true)
 
     override fun tick(): Boolean {
         while (true) {
@@ -33,9 +34,9 @@ class SlidingWindowRateLimiter(
         }
     }
 
-    fun tickBlocking() {
+    fun tickBlocking() = blockingLock.withLock {
         while (!tick()) {
-            Thread.sleep(10)
+            Thread.sleep(1)
         }
     }
 

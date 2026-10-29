@@ -1,13 +1,39 @@
-### Run test locally
+### Case 5 - Test 1 (acc-23)
 POST http://localhost:1234/test/run
 Content-Type: application/json
 
 {
   "serviceName": "{{serviceName}}",
   "token": "{{token}}",
-  "ratePerSecond": 200,
-  "testCount": 6000,
-  "processingTimeMillis": 3000
+  "ratePerSecond": 15,
+  "testCount": 3000,
+  "processingTimeMillis": 2500
+}
+
+### Case 5 - Test 2 (acc-23)
+POST http://localhost:1234/test/run
+Content-Type: application/json
+
+{
+  "serviceName": "{{serviceName}}",
+  "token": "{{token}}",
+  "ratePerSecond": 11,
+  "testCount": 2200,
+  "processingTimeMillis": 13000,
+  "profile": "s_0.7_60"
+}
+
+### Case 5 - Test 3 (acc-23)
+POST http://localhost:1234/test/run
+Content-Type: application/json
+
+{
+  "serviceName": "{{serviceName}}",
+  "token": "{{token}}",
+  "ratePerSecond": 3,
+  "testCount": 1050,
+  "processingTimeMillis": 26000,
+  "runits": 90
 }
 
 ### Stop running test to save time and resources

@@ -3474,7 +3474,7 @@
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 7 },
       "id": 101,
       "panels": [],
-      "title": "Case 4",
+      "title": "Case 5",
       "type": "row"
     },
     {
@@ -3482,7 +3482,7 @@
         "type": "prometheus",
         "uid": "PBFA97CFB590B2093"
       },
-      "description": "Accepted payment requests and HTTP 429 responses. Incoming attempts include retries. Admission depends on the bounded payment queue and estimated time remaining before the deadline.",
+      "description": "Accepted payment requests and HTTP 429 responses. Incoming attempts include retries. The admission rate limiter allows a burst only when its estimated drain time fits before the payment deadline.",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },

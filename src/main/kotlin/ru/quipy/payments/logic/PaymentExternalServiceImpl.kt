@@ -13,6 +13,7 @@ import ru.quipy.payments.api.PaymentAggregate
 import java.net.SocketTimeoutException
 import java.time.Duration
 import java.util.*
+import java.util.concurrent.TimeUnit
 
 
 // Advice: always treat time as a Duration
@@ -41,6 +42,12 @@ class PaymentExternalSystemAdapterImpl(
     private val ongoingWindow = OngoingWindow(parallelRequests)
 
     override fun performPaymentAsync(paymentId: UUID, amount: Int, paymentStartedAt: Long, deadline: Long) {
+        repeat(3) { attempt ->
+            if (performPaymentAttempt(paymentId, amount, paymentStartedAt, deadline, attempt)) return
+        }
+    }
+
+    private fun performPaymentAttempt(paymentId: UUID, amount: Int, paymentStartedAt: Long, deadline: Long, attempt: Int): Boolean {
         logger.warn("[$accountName] Submitting payment request for payment $paymentId")
 
         val transactionId = UUID.randomUUID()
@@ -65,9 +72,11 @@ class PaymentExternalSystemAdapterImpl(
                 paymentESService.update(paymentId) {
                     it.logProcessing(false, now(), transactionId, reason = "Payment deadline expired before sending.")
                 }
-                return
+                return true
             }
-            client.newCall(request).execute().use { response ->
+            val call = client.newCall(request)
+            call.timeout().timeout((deadline - now()).coerceAtLeast(1), TimeUnit.MILLISECONDS)
+            call.execute().use { response ->
                 val body = try {
                     mapper.readValue(response.body?.string(), ExternalSysResponse::class.java)
                 } catch (e: Exception) {
@@ -76,6 +85,9 @@ class PaymentExternalSystemAdapterImpl(
                 }
 
                 logger.warn("[$accountName] Payment processed for txId: $transactionId, payment: $paymentId, succeeded: ${body.result}, message: ${body.message}")
+
+                if (!body.result && body.message == "Temporary error" && attempt < 2 &&
+                    now() + requestAverageProcessingTime.toMillis() < deadline) return false
 
                 // Здесь мы обновляем состояние оплаты в зависимости от результата в базе данных оплат.
                 // Это требуется сделать ВО ВСЕХ ИСХОДАХ (успешная оплата / неуспешная / ошибочная ситуация)
@@ -103,6 +115,7 @@ class PaymentExternalSystemAdapterImpl(
         } finally {
             ongoingWindow.release()
         }
+        return true
     }
 
     override fun price() = properties.price

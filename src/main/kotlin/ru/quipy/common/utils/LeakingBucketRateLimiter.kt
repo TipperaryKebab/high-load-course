@@ -26,4 +26,12 @@ class LeakingBucketRateLimiter(
         nextPermitAt = now + wait + intervalNanos
         return true
     }
+
+    @Synchronized
+    fun reserve(): Duration {
+        val now = System.nanoTime()
+        val wait = (nextPermitAt - now).coerceAtLeast(0)
+        nextPermitAt = now + wait + intervalNanos
+        return Duration.ofNanos(wait)
+    }
 }

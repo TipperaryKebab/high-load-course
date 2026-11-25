@@ -3474,7 +3474,7 @@
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 7 },
       "id": 101,
       "panels": [],
-      "title": "Case 6",
+      "title": "Case 7",
       "type": "row"
     },
     {
@@ -3512,6 +3512,139 @@
         }
       ],
       "title": "Payment admission rate",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "description": "Every call to the payment system costs the account price, so this is the money spent per second, split by how the call ended.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "min": 0,
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "id": 103,
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "none" }
+      },
+      "targets": [
+        { "expr": "sum by (account, outcome) (rate(shop_payment_provider_calls_total{service=~\"$service\"}[$__rate_interval]))", "legendFormat": "{{account}} - {{outcome}}", "range": true, "refId": "A" }
+      ],
+      "title": "Spent calls: payment system requests per second",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "description": "Calls sent to the payment system since the shop started (exact counters as of the end of the selected range), split by how they ended. Success + timeout + temporary_error + rate_limited + parallel_limited + rejected + error = every paid call.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "id": 104,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "11.4.0",
+      "targets": [
+        { "expr": "sum by (account, outcome) (last_over_time(shop_payment_provider_calls_total{service=~\"$service\"}[$__range]))", "legendFormat": "{{account}} - {{outcome}}", "range": true, "refId": "A" }
+      ],
+      "title": "Spent calls in range",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "description": "Payments since the shop started (exact counters as of the end of the selected range) by the number of calls they needed. Without retries every payment is a single call; a retry is paid but turns a would-be failed payment into a successful one.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
+      "id": 105,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "11.4.0",
+      "targets": [
+        { "expr": "sum by (result, attempts) (last_over_time(shop_payment_attempts_total{service=~\"$service\"}[$__range]))", "legendFormat": "{{result}} after {{attempts}} call(s)", "range": true, "refId": "A" }
+      ],
+      "title": "Payments by calls spent",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "description": "Average duration of one call to the payment system. A timed out call lasts exactly the attempt slice; a slow payment system shows as timeouts instead of long successes.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "min": 0,
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
+      "id": 106,
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "none" }
+      },
+      "targets": [
+        { "expr": "sum by (account, outcome) (rate(shop_payment_provider_call_seconds_sum{service=~\"$service\"}[1m])) / sum by (account, outcome) (rate(shop_payment_provider_call_seconds_count{service=~\"$service\"}[1m]))", "legendFormat": "{{account}} - {{outcome}}", "range": true, "refId": "A" }
+      ],
+      "title": "Payment system call duration: average",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "description": "How the payment system itself classified the calls it received. SUCCESS and CLIENT_DEADLINE_EXCEEDED (call dropped by its timeout parameter) are expected; rate_limit_breached and parallel_requests_limit_breached are account limit violations and must stay at zero.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "min": 0,
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 32 },
+      "id": 107,
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "none" }
+      },
+      "targets": [
+        { "expr": "sum by (accountName, outcome) (rate(external_sys_duration_count{service=~\"$service\"}[30s]))", "legendFormat": "{{accountName}} - {{outcome}}", "range": true, "refId": "A" }
+      ],
+      "title": "Payment system outcomes per second (its own metrics)",
       "type": "timeseries"
     }
   ],

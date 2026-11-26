@@ -36,6 +36,7 @@ class PaymentExternalSystemAdapterImpl(
         val mapper = ObjectMapper().registerKotlinModule()
 
         const val MAX_ATTEMPTS = 6
+        const val SERVER_TIMEOUT_GRACE_MILLIS = 300L
     }
 
     private data class AttemptResult(val success: Boolean, val retry: Boolean, val outcome: String)
@@ -46,7 +47,7 @@ class PaymentExternalSystemAdapterImpl(
     private val rateLimitPerSec = properties.rateLimitPerSec
     private val parallelRequests = properties.parallelRequests
 
-    private val client = OkHttpClient.Builder().readTimeout(Duration.ofSeconds(60)).build()
+    private val client = OkHttpClient.Builder().readTimeout(Duration.ofSeconds(60)).retryOnConnectionFailure(false).build()
     private val rateLimiter = LeakingBucketRateLimiter(
         (rateLimitPerSec - 1).coerceAtLeast(1).toLong(), Duration.ofSeconds(1), parallelRequests
     )
@@ -95,7 +96,7 @@ class PaymentExternalSystemAdapterImpl(
         ongoingWindow.acquire()
         try {
             val request = Request.Builder().run {
-                url("http://$paymentProviderHostPort/external/process?serviceName=$serviceName&token=$token&accountName=$accountName&transactionId=$transactionId&paymentId=$paymentId&amount=$amount")
+                url("http://$paymentProviderHostPort/external/process?serviceName=$serviceName&token=$token&accountName=$accountName&transactionId=$transactionId&paymentId=$paymentId&amount=$amount&timeout=$attemptTimeout")
                 post(emptyBody)
             }.build()
 
@@ -111,7 +112,7 @@ class PaymentExternalSystemAdapterImpl(
             val startedAt = System.nanoTime()
             val result: AttemptResult = try {
                 val call = client.newCall(request)
-                call.timeout().timeout(minOf(attemptTimeout.toMillis(), deadline - now()).coerceAtLeast(1), TimeUnit.MILLISECONDS)
+                call.timeout().timeout(minOf(attemptTimeout.plusMillis(SERVER_TIMEOUT_GRACE_MILLIS).toMillis(), deadline - now()).coerceAtLeast(1), TimeUnit.MILLISECONDS)
                 call.execute().use { response ->
                     val body = try {
                         mapper.readValue(response.body?.string(), ExternalSysResponse::class.java)

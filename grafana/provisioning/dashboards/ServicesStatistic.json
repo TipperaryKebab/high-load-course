@@ -3474,7 +3474,7 @@
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 7 },
       "id": 101,
       "panels": [],
-      "title": "Case 7",
+      "title": "Case 8",
       "type": "row"
     },
     {
@@ -3564,7 +3564,7 @@
       },
       "pluginVersion": "11.4.0",
       "targets": [
-        { "expr": "sum by (account, outcome) (last_over_time(shop_payment_provider_calls_total{service=~\"$service\"}[$__range]))", "legendFormat": "{{account}} - {{outcome}}", "range": true, "refId": "A" }
+        { "expr": "sum by (account, outcome) (last_over_time(shop_payment_provider_calls_total{service=~\"$service\"}[$__range]))", "legendFormat": "{{account}} - {{outcome}}", "instant": true, "range": false, "refId": "A" }
       ],
       "title": "Spent calls in range",
       "type": "stat"
@@ -3596,7 +3596,7 @@
       },
       "pluginVersion": "11.4.0",
       "targets": [
-        { "expr": "sum by (result, attempts) (last_over_time(shop_payment_attempts_total{service=~\"$service\"}[$__range]))", "legendFormat": "{{result}} after {{attempts}} call(s)", "range": true, "refId": "A" }
+        { "expr": "sum by (result, attempts) (last_over_time(shop_payment_attempts_total{service=~\"$service\"}[$__range]))", "legendFormat": "{{result}} after {{attempts}} call(s)", "instant": true, "range": false, "refId": "A" }
       ],
       "title": "Payments by calls spent",
       "type": "stat"
